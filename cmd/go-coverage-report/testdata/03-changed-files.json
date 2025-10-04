@@ -1,0 +1,8 @@
+[
+  "cmd/go-coverage-report/changed_files.go",
+  "cmd/go-coverage-report/changed_files_test.go",
+  "cmd/go-coverage-report/report.go",
+  "cmd/go-coverage-report/report_test.go",
+  "cmd/go-coverage-report/profile.go",
+  "cmd/go-coverage-report/nonexistent-file.go"
+]
