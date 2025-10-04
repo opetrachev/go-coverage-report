@@ -205,6 +205,38 @@ func (r *Report) addTestFileDetails(report *strings.Builder, files []string) {
 	fmt.Fprintln(report)
 }
 
+// JSONReport represents the JSON structure for the coverage report
+type JSONReport struct {
+	CoverageByPackage    []PackageCoverage     `json:"coverage_by_package"`
+	CoverageByFile       []PackageFileCoverage `json:"coverage_by_file"`
+	ChangedUnitTestFiles []string              `json:"changed_unit_test_files"`
+}
+
+// PackageCoverage represents coverage information for a package
+type PackageCoverage struct {
+	Name     string  `json:"name"`
+	Coverage float64 `json:"coverage"`
+	Change   float64 `json:"change"`
+}
+
+// PackageFileCoverage represents coverage information for files grouped by package
+type PackageFileCoverage struct {
+	Package string         `json:"package"`
+	Files   []FileCoverage `json:"files"`
+}
+
+// FileCoverage represents coverage information for a file
+type FileCoverage struct {
+	Name          string  `json:"name"`
+	Coverage      float64 `json:"coverage"`
+	Change        float64 `json:"change"`
+	Total         int64   `json:"total"`
+	Covered       int64   `json:"covered"`
+	CoveredChange int64   `json:"covered_change"`
+	Missed        int64   `json:"missed"`
+	MissedChange  int64   `json:"missed_change"`
+}
+
 func (r *Report) JSON() string {
 	data, err := json.MarshalIndent(r, "", "    ")
 	if err != nil {
@@ -212,6 +244,142 @@ func (r *Report) JSON() string {
 	}
 
 	return string(data)
+}
+
+func (r *Report) JSONCombined() string {
+	jsonReport := r.buildJSONReport()
+
+	data, err := json.MarshalIndent(jsonReport, "", "    ")
+	if err != nil {
+		panic(err) // should never happen
+	}
+
+	return string(data)
+}
+
+func (r *Report) buildJSONReport() JSONReport {
+	report := JSONReport{
+		CoverageByPackage:    r.buildPackageCoverage(),
+		CoverageByFile:       r.buildFileCoverage(),
+		ChangedUnitTestFiles: r.getChangedUnitTestFiles(),
+	}
+
+	return report
+}
+
+func (r *Report) buildPackageCoverage() []PackageCoverage {
+	var result []PackageCoverage
+
+	oldCovPkgs := r.Old.ByPackage()
+	newCovPkgs := r.New.ByPackage()
+
+	for _, pkg := range r.ChangedPackages {
+		var oldPercent, newPercent float64
+
+		if cov, ok := oldCovPkgs[pkg]; ok {
+			oldPercent = cov.Percent()
+		}
+
+		if cov, ok := newCovPkgs[pkg]; ok {
+			newPercent = cov.Percent()
+		}
+
+		change := round(newPercent-oldPercent, 2)
+		newP := round(newPercent, 2)
+
+		result = append(result, PackageCoverage{
+			Name:     pkg,
+			Coverage: newP,
+			Change:   change,
+		})
+	}
+
+	return result
+}
+
+func (r *Report) buildFileCoverage() []PackageFileCoverage {
+	// Get only code files (not test files)
+	var codeFiles []string
+	for _, f := range r.ChangedFiles {
+		if !strings.HasSuffix(f, "_test.go") {
+			codeFiles = append(codeFiles, f)
+		}
+	}
+
+	// Group files by package
+	packageFiles := make(map[string][]FileCoverage)
+
+	for _, name := range codeFiles {
+		var oldPercent, newPercent float64
+		var oldCovered, oldMissed int64
+		var newTotal, newCovered, newMissed int64
+
+		oldProfile := r.Old.Files[name]
+		newProfile := r.New.Files[name]
+
+		if oldProfile != nil {
+			oldPercent = oldProfile.CoveragePercent()
+			oldCovered = oldProfile.GetCovered()
+			oldMissed = oldProfile.GetMissed()
+		}
+
+		if newProfile != nil {
+			newPercent = newProfile.CoveragePercent()
+			newTotal = newProfile.GetTotal()
+			newCovered = newProfile.GetCovered()
+			newMissed = newProfile.GetMissed()
+		}
+
+		change := round(newPercent-oldPercent, 2)
+		newP := round(newPercent, 2)
+		coveredChange := newCovered - oldCovered
+		missedChange := newMissed - oldMissed
+
+		// Extract package name from file path
+		pkg := filepath.Dir(name)
+
+		// Extract just the filename (without package path)
+		fileName := filepath.Base(name)
+
+		fileCoverage := FileCoverage{
+			Name:          fileName,
+			Coverage:      newP,
+			Change:        change,
+			Total:         newTotal,
+			Covered:       newCovered,
+			CoveredChange: coveredChange,
+			Missed:        newMissed,
+			MissedChange:  missedChange,
+		}
+
+		packageFiles[pkg] = append(packageFiles[pkg], fileCoverage)
+	}
+
+	// Convert map to slice and sort by package name
+	var result []PackageFileCoverage
+	for pkg, files := range packageFiles {
+		result = append(result, PackageFileCoverage{
+			Package: pkg,
+			Files:   files,
+		})
+	}
+
+	// Sort by package name for consistent output
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Package < result[j].Package
+	})
+
+	return result
+}
+
+func (r *Report) getChangedUnitTestFiles() []string {
+	var result []string
+	for _, f := range r.ChangedFiles {
+		if strings.HasSuffix(f, "_test.go") {
+			result = append(result, f)
+		}
+	}
+	return result
 }
 
 func (r *Report) TrimPrefix(prefix string) {
