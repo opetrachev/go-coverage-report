@@ -207,9 +207,9 @@ func (r *Report) addTestFileDetails(report *strings.Builder, files []string) {
 
 // JSONReport represents the JSON structure for the coverage report
 type JSONReport struct {
-	CoverageByPackage    []PackageCoverage `json:"coverage_by_package"`
-	CoverageByFile       []FileCoverage    `json:"coverage_by_file"`
-	ChangedUnitTestFiles []string          `json:"changed_unit_test_files"`
+	CoverageByPackage    []PackageCoverage     `json:"coverage_by_package"`
+	CoverageByFile       []PackageFileCoverage `json:"coverage_by_file"`
+	ChangedUnitTestFiles []string              `json:"changed_unit_test_files"`
 }
 
 // PackageCoverage represents coverage information for a package
@@ -217,6 +217,12 @@ type PackageCoverage struct {
 	Name     string  `json:"name"`
 	Coverage float64 `json:"coverage"`
 	Change   float64 `json:"change"`
+}
+
+// PackageFileCoverage represents coverage information for files grouped by package
+type PackageFileCoverage struct {
+	Package string         `json:"package"`
+	Files   []FileCoverage `json:"files"`
 }
 
 // FileCoverage represents coverage information for a file
@@ -291,9 +297,7 @@ func (r *Report) buildPackageCoverage() []PackageCoverage {
 	return result
 }
 
-func (r *Report) buildFileCoverage() []FileCoverage {
-	var result []FileCoverage
-
+func (r *Report) buildFileCoverage() []PackageFileCoverage {
 	// Get only code files (not test files)
 	var codeFiles []string
 	for _, f := range r.ChangedFiles {
@@ -301,6 +305,9 @@ func (r *Report) buildFileCoverage() []FileCoverage {
 			codeFiles = append(codeFiles, f)
 		}
 	}
+
+	// Group files by package
+	packageFiles := make(map[string][]FileCoverage)
 
 	for _, name := range codeFiles {
 		var oldPercent, newPercent float64
@@ -328,8 +335,14 @@ func (r *Report) buildFileCoverage() []FileCoverage {
 		coveredChange := newCovered - oldCovered
 		missedChange := newMissed - oldMissed
 
-		result = append(result, FileCoverage{
-			Name:          name,
+		// Extract package name from file path
+		pkg := filepath.Dir(name)
+
+		// Extract just the filename (without package path)
+		fileName := filepath.Base(name)
+
+		fileCoverage := FileCoverage{
+			Name:          fileName,
 			Coverage:      newP,
 			Change:        change,
 			Total:         newTotal,
@@ -337,8 +350,24 @@ func (r *Report) buildFileCoverage() []FileCoverage {
 			CoveredChange: coveredChange,
 			Missed:        newMissed,
 			MissedChange:  missedChange,
+		}
+
+		packageFiles[pkg] = append(packageFiles[pkg], fileCoverage)
+	}
+
+	// Convert map to slice and sort by package name
+	var result []PackageFileCoverage
+	for pkg, files := range packageFiles {
+		result = append(result, PackageFileCoverage{
+			Package: pkg,
+			Files:   files,
 		})
 	}
+
+	// Sort by package name for consistent output
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Package < result[j].Package
+	})
 
 	return result
 }

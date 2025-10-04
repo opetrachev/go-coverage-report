@@ -103,44 +103,49 @@ func TestReport_JSONCombined(t *testing.T) {
     ],
     "coverage_by_file": [
         {
-            "name": "cmd/go-coverage-report/changed_files.go",
-            "coverage": 80,
-            "change": 80,
-            "total": 10,
-            "covered": 8,
-            "covered_change": 8,
-            "missed": 2,
-            "missed_change": -8
-        },
-        {
-            "name": "cmd/go-coverage-report/nonexistent-file.go",
-            "coverage": 0,
-            "change": 0,
-            "total": 0,
-            "covered": 0,
-            "covered_change": 0,
-            "missed": 0,
-            "missed_change": 0
-        },
-        {
-            "name": "cmd/go-coverage-report/profile.go",
-            "coverage": 57.45,
-            "change": 7.8,
-            "total": 141,
-            "covered": 81,
-            "covered_change": 11,
-            "missed": 60,
-            "missed_change": -11
-        },
-        {
-            "name": "cmd/go-coverage-report/report.go",
-            "coverage": 82.03,
-            "change": 82.03,
-            "total": 128,
-            "covered": 105,
-            "covered_change": 105,
-            "missed": 23,
-            "missed_change": -105
+            "package": "cmd/go-coverage-report",
+            "files": [
+                {
+                    "name": "changed_files.go",
+                    "coverage": 80,
+                    "change": 80,
+                    "total": 10,
+                    "covered": 8,
+                    "covered_change": 8,
+                    "missed": 2,
+                    "missed_change": -8
+                },
+                {
+                    "name": "nonexistent-file.go",
+                    "coverage": 0,
+                    "change": 0,
+                    "total": 0,
+                    "covered": 0,
+                    "covered_change": 0,
+                    "missed": 0,
+                    "missed_change": 0
+                },
+                {
+                    "name": "profile.go",
+                    "coverage": 57.45,
+                    "change": 7.8,
+                    "total": 141,
+                    "covered": 81,
+                    "covered_change": 11,
+                    "missed": 60,
+                    "missed_change": -11
+                },
+                {
+                    "name": "report.go",
+                    "coverage": 82.03,
+                    "change": 82.03,
+                    "total": 128,
+                    "covered": 105,
+                    "covered_change": 105,
+                    "missed": 23,
+                    "missed_change": -105
+                }
+            ]
         }
     ],
     "changed_unit_test_files": [
