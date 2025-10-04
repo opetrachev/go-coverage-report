@@ -46,7 +46,7 @@ func main() {
 
 	flag.String("root", "", "The import path of the tested repository to add as prefix to all paths of the changed files")
 	flag.String("trim", "", "trim a prefix in the \"Impacted Packages\" column of the markdown report")
-	flag.String("format", "markdown", "output format (currently only 'markdown' is supported)")
+	flag.String("format", "markdown", "output format (markdown, json, json-combined)")
 
 	err := run(programArgs())
 	if err != nil {
@@ -106,6 +106,8 @@ func run(oldCovPath, newCovPath, changedFilesPath string, opts options) error {
 		fmt.Fprintln(os.Stdout, report.Markdown())
 	case "json":
 		fmt.Fprintln(os.Stdout, report.JSON())
+	case "json-combined":
+		fmt.Fprintln(os.Stdout, report.JSONCombined())
 	default:
 		return fmt.Errorf("unsupported format: %q", opts.format)
 	}

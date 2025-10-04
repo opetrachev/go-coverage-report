@@ -232,6 +232,15 @@ type FileCoverage struct {
 }
 
 func (r *Report) JSON() string {
+	data, err := json.MarshalIndent(r, "", "    ")
+	if err != nil {
+		panic(err) // should never happen
+	}
+
+	return string(data)
+}
+
+func (r *Report) JSONCombined() string {
 	jsonReport := r.buildJSONReport()
 
 	data, err := json.MarshalIndent(jsonReport, "", "    ")
