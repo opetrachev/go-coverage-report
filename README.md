@@ -105,6 +105,9 @@ jobs:
         with:
           coverage-artifact-name: "code-coverage" # can be omitted if you used this default value
           coverage-file-name: "coverage.txt" # can be omitted if you used this default value
+          # Optional: Use reporting thresholds to focus on significant coverage changes
+          # package-threshold: "5.0"        # Only show packages with 5%+ coverage changes
+          # file-exclusion-threshold: "2.0" # Only show files with 2%+ coverage changes
 ```
 
 
@@ -161,6 +164,27 @@ inputs:
       and don't affect coverage calculations.
     required: false
 
+  package-threshold:
+    description: |
+      Minimum coverage change percentage for packages to be included in "Impacted Packages" section.
+      Packages with coverage changes below this threshold will be excluded from the report.
+    required: false
+    default: "0"
+
+  package-file-threshold:
+    description: |
+      Minimum coverage change percentage for any file in a package to trigger package inclusion in "Impacted Packages" section.
+      If any file in a package has coverage changes above this threshold, the package will be included.
+    required: false
+    default: "0"
+
+  file-exclusion-threshold:
+    description: |
+      Minimum coverage change percentage for files to be included in "Changed files" section.
+      Files with coverage changes below this threshold will be excluded from the report.
+    required: false
+    default: "0"
+
   github-baseline-workflow-ref:
     description: |
       The ref of the GitHub actions Workflow that produces the baseline coverage.
@@ -213,6 +237,51 @@ Excluded files are completely removed from the coverage report:
 - They don't affect package-level coverage calculations
 - They don't appear in the changed files list
 - They are excluded from both old and new coverage profiles
+
+## Reporting Thresholds
+
+You can filter packages and files in the coverage report based on minimum coverage change thresholds. This is useful for focusing on significant coverage changes and reducing noise in reports.
+
+### New Flags
+
+- `--package-threshold`: Minimum coverage change percentage for packages to be included in "Impacted Packages" section (default: 0)
+- `--package-file-threshold`: Minimum coverage change percentage for any file in a package to trigger package inclusion in "Impacted Packages" section (default: 0)
+- `--file-exclusion-threshold`: Minimum coverage change percentage for files to be included in "Changed files" section (default: 0)
+
+### Filtering Logic
+
+**Packages (Impacted Packages section):**
+A package is included if ANY of the following conditions are met:
+- Package coverage change ≥ `package-threshold` OR
+- Any file in the package has coverage change ≥ `package-file-threshold`
+
+**Files (Changed files section):**
+A file is included if:
+- File coverage change ≥ `file-exclusion-threshold`
+
+### Usage Examples
+
+```bash
+# Exclude packages with coverage changes less than 5%
+go-coverage-report --package-threshold 5.0 old.coverage new.coverage changed-files.json
+
+# Exclude files with coverage changes less than 2%
+go-coverage-report --file-exclusion-threshold 2.0 old.coverage new.coverage changed-files.json
+
+# Combined usage for focused reporting
+go-coverage-report --package-threshold 5.0 --file-exclusion-threshold 2.0 old.coverage new.coverage changed-files.json
+
+# Include packages only if any file has significant changes (10%+)
+go-coverage-report --package-file-threshold 10.0 old.coverage new.coverage changed-files.json
+```
+
+### Behavior
+
+- All thresholds use absolute values (handles both positive and negative coverage changes)
+- Default threshold value is 0 (all packages and files included - maintains backward compatibility)
+- Thresholds only affect report generation, not coverage calculations
+- The "Impacted Packages" section is filtered based on thresholds
+- The "Changed files" section is filtered based on file exclusion threshold
 
 ## Limitations
 
