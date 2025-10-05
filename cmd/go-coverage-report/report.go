@@ -10,18 +10,24 @@ import (
 )
 
 type Report struct {
-	Old, New        *Coverage
-	ChangedFiles    []string
-	ChangedPackages []string
+	Old, New               *Coverage
+	ChangedFiles           []string
+	ChangedPackages        []string
+	PackageThreshold       float64
+	PackageFileThreshold   float64
+	FileExclusionThreshold float64
 }
 
-func NewReport(oldCov, newCov *Coverage, changedFiles []string) *Report {
+func NewReport(oldCov, newCov *Coverage, changedFiles []string, packageThreshold, packageFileThreshold, fileExclusionThreshold float64) *Report {
 	sort.Strings(changedFiles)
 	return &Report{
-		Old:             oldCov,
-		New:             newCov,
-		ChangedFiles:    changedFiles,
-		ChangedPackages: changedPackages(changedFiles),
+		Old:                    oldCov,
+		New:                    newCov,
+		ChangedFiles:           changedFiles,
+		ChangedPackages:        changedPackages(changedFiles),
+		PackageThreshold:       packageThreshold,
+		PackageFileThreshold:   packageFileThreshold,
+		FileExclusionThreshold: fileExclusionThreshold,
 	}
 }
 
@@ -42,12 +48,93 @@ func changedPackages(changedFiles []string) []string {
 	return result
 }
 
+// coverageChange calculates the absolute coverage change between old and new percentages
+func coverageChange(oldPercent, newPercent float64) float64 {
+	return math.Abs(newPercent - oldPercent)
+}
+
+// shouldIncludePackage determines if a package should be included in the Impacted Packages section
+func (r *Report) shouldIncludePackage(pkg string) bool {
+	oldCovPkgs := r.Old.ByPackage()
+	newCovPkgs := r.New.ByPackage()
+
+	var oldPercent, newPercent float64
+	if cov, ok := oldCovPkgs[pkg]; ok {
+		oldPercent = cov.Percent()
+	}
+	if cov, ok := newCovPkgs[pkg]; ok {
+		newPercent = cov.Percent()
+	}
+
+	packageCoverageChange := coverageChange(oldPercent, newPercent)
+
+	// Check package threshold
+	if packageCoverageChange >= r.PackageThreshold {
+		return true
+	}
+
+	// Check if any file in the package meets the package file threshold
+	packageFileThreshold := r.PackageFileThreshold
+	for _, file := range r.ChangedFiles {
+		if filepath.Dir(file) == pkg {
+			fileOldPercent, fileNewPercent := r.getFileCoveragePercentages(file)
+			fileCoverageChange := coverageChange(fileOldPercent, fileNewPercent)
+			if fileCoverageChange >= packageFileThreshold {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// shouldIncludeFile determines if a file should be included in the Changed files section
+func (r *Report) shouldIncludeFile(file string) bool {
+	oldPercent, newPercent := r.getFileCoveragePercentages(file)
+	fileCoverageChange := coverageChange(oldPercent, newPercent)
+	return fileCoverageChange >= r.FileExclusionThreshold
+}
+
+// getFileCoveragePercentages returns old and new coverage percentages for a file
+func (r *Report) getFileCoveragePercentages(file string) (oldPercent, newPercent float64) {
+	if oldProfile := r.Old.Files[file]; oldProfile != nil {
+		oldPercent = oldProfile.CoveragePercent()
+	}
+	if newProfile := r.New.Files[file]; newProfile != nil {
+		newPercent = newProfile.CoveragePercent()
+	}
+	return oldPercent, newPercent
+}
+
+// filteredChangedPackages returns packages that meet the threshold criteria
+func (r *Report) filteredChangedPackages() []string {
+	var filtered []string
+	for _, pkg := range r.ChangedPackages {
+		if r.shouldIncludePackage(pkg) {
+			filtered = append(filtered, pkg)
+		}
+	}
+	return filtered
+}
+
+// filteredChangedFiles returns files that meet the exclusion threshold criteria
+func (r *Report) filteredChangedFiles() []string {
+	var filtered []string
+	for _, file := range r.ChangedFiles {
+		if r.shouldIncludeFile(file) {
+			filtered = append(filtered, file)
+		}
+	}
+	return filtered
+}
+
 func (r *Report) Title() string {
 	oldCovPkgs := r.Old.ByPackage()
 	newCovPkgs := r.New.ByPackage()
 
 	var numDecrease, numIncrease int
-	for _, pkg := range r.ChangedPackages {
+	filteredPackages := r.filteredChangedPackages()
+	for _, pkg := range filteredPackages {
 		var oldPercent, newPercent float64
 
 		if cov, ok := oldCovPkgs[pkg]; ok {
@@ -90,7 +177,8 @@ func (r *Report) Markdown() string {
 
 	oldCovPkgs := r.Old.ByPackage()
 	newCovPkgs := r.New.ByPackage()
-	for _, pkg := range r.ChangedPackages {
+	filteredPackages := r.filteredChangedPackages()
+	for _, pkg := range filteredPackages {
 		var oldPercent, newPercent float64
 
 		if cov, ok := oldCovPkgs[pkg]; ok {
@@ -126,7 +214,8 @@ func (r *Report) addDetails(report *strings.Builder) {
 	fmt.Fprintln(report)
 
 	var codeFiles, unitTestFiles []string
-	for _, f := range r.ChangedFiles {
+	filteredFiles := r.filteredChangedFiles()
+	for _, f := range filteredFiles {
 		if strings.HasSuffix(f, "_test.go") {
 			unitTestFiles = append(unitTestFiles, f)
 		} else {

@@ -32,10 +32,13 @@ OPTIONS:
 `, filepath.Base(os.Args[0])))
 
 type options struct {
-	root        string
-	trim        string
-	format      string
-	excludeFile string
+	root                   string
+	trim                   string
+	format                 string
+	excludeFile            string
+	packageThreshold       float64
+	packageFileThreshold   float64
+	fileExclusionThreshold float64
 }
 
 func main() {
@@ -49,6 +52,9 @@ func main() {
 	flag.String("trim", "", "trim a prefix in the \"Impacted Packages\" column of the markdown report")
 	flag.String("format", "markdown", "output format (currently only 'markdown' is supported)")
 	flag.String("exclude-file", "", "path to file containing patterns for files to exclude from coverage report")
+	flag.Float64("package-threshold", 0, "minimum coverage change percentage for packages to be included in Impacted Packages section")
+	flag.Float64("package-file-threshold", 0, "minimum coverage change percentage for any file in a package to trigger package inclusion in Impacted Packages section")
+	flag.Float64("file-exclusion-threshold", 0, "minimum coverage change percentage for files to be included in Changed files section")
 
 	err := run(programArgs())
 	if err != nil {
@@ -69,10 +75,13 @@ func programArgs() (oldCov, newCov, changedFile string, opts options) {
 	}
 
 	opts = options{
-		root:        flag.Lookup("root").Value.String(),
-		trim:        flag.Lookup("trim").Value.String(),
-		format:      flag.Lookup("format").Value.String(),
-		excludeFile: flag.Lookup("exclude-file").Value.String(),
+		root:                   flag.Lookup("root").Value.String(),
+		trim:                   flag.Lookup("trim").Value.String(),
+		format:                 flag.Lookup("format").Value.String(),
+		excludeFile:            flag.Lookup("exclude-file").Value.String(),
+		packageThreshold:       flag.Lookup("package-threshold").Value.(flag.Getter).Get().(float64),
+		packageFileThreshold:   flag.Lookup("package-file-threshold").Value.(flag.Getter).Get().(float64),
+		fileExclusionThreshold: flag.Lookup("file-exclusion-threshold").Value.(flag.Getter).Get().(float64),
 	}
 
 	return args[0], args[1], args[2], opts
@@ -112,6 +121,12 @@ func readExcludePatterns(filename string) ([]string, error) {
 }
 
 func run(oldCovPath, newCovPath, changedFilesPath string, opts options) error {
+	// Validate threshold constraints
+	if opts.fileExclusionThreshold > opts.packageFileThreshold {
+		return fmt.Errorf("file-exclusion-threshold (%.2f) cannot be greater than package-file-threshold (%.2f)",
+			opts.fileExclusionThreshold, opts.packageFileThreshold)
+	}
+
 	// Read exclude patterns if specified
 	excludePatterns, err := readExcludePatterns(opts.excludeFile)
 	if err != nil {
@@ -138,7 +153,7 @@ func run(oldCovPath, newCovPath, changedFilesPath string, opts options) error {
 		return nil
 	}
 
-	report := NewReport(oldCov, newCov, changedFiles)
+	report := NewReport(oldCov, newCov, changedFiles, opts.packageThreshold, opts.packageFileThreshold, opts.fileExclusionThreshold)
 	if opts.trim != "" {
 		report.TrimPrefix(opts.trim)
 	}
