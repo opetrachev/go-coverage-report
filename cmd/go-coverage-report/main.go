@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"log"
@@ -31,9 +32,10 @@ OPTIONS:
 `, filepath.Base(os.Args[0])))
 
 type options struct {
-	root   string
-	trim   string
-	format string
+	root        string
+	trim        string
+	format      string
+	excludeFile string
 }
 
 func main() {
@@ -43,10 +45,10 @@ func main() {
 		fmt.Fprintln(os.Stderr, usage)
 		flag.PrintDefaults()
 	}
-
 	flag.String("root", "", "The import path of the tested repository to add as prefix to all paths of the changed files")
 	flag.String("trim", "", "trim a prefix in the \"Impacted Packages\" column of the markdown report")
 	flag.String("format", "markdown", "output format (currently only 'markdown' is supported)")
+	flag.String("exclude-file", "", "path to file containing patterns for files to exclude from coverage report")
 
 	err := run(programArgs())
 	if err != nil {
@@ -67,26 +69,66 @@ func programArgs() (oldCov, newCov, changedFile string, opts options) {
 	}
 
 	opts = options{
-		root:   flag.Lookup("root").Value.String(),
-		trim:   flag.Lookup("trim").Value.String(),
-		format: flag.Lookup("format").Value.String(),
+		root:        flag.Lookup("root").Value.String(),
+		trim:        flag.Lookup("trim").Value.String(),
+		format:      flag.Lookup("format").Value.String(),
+		excludeFile: flag.Lookup("exclude-file").Value.String(),
 	}
 
 	return args[0], args[1], args[2], opts
 }
 
+// readExcludePatterns reads exclusion patterns from a file
+func readExcludePatterns(filename string) ([]string, error) {
+	if filename == "" {
+		return nil, nil
+	}
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open exclude file %s: %w", filename, err)
+	}
+	defer file.Close()
+
+	var patterns []string
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip empty lines and comments
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		patterns = append(patterns, line)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("failed to read exclude file %s: %w", filename, err)
+	}
+
+	return patterns, nil
+}
+
 func run(oldCovPath, newCovPath, changedFilesPath string, opts options) error {
-	oldCov, err := ParseCoverage(oldCovPath)
+	// Read exclude patterns if specified
+	excludePatterns, err := readExcludePatterns(opts.excludeFile)
+	if err != nil {
+		return fmt.Errorf("failed to read exclude patterns: %w", err)
+	}
+
+	oldCov, err := ParseCoverage(oldCovPath, excludePatterns)
 	if err != nil {
 		return fmt.Errorf("failed to parse old coverage: %w", err)
 	}
 
-	newCov, err := ParseCoverage(newCovPath)
+	newCov, err := ParseCoverage(newCovPath, excludePatterns)
 	if err != nil {
 		return fmt.Errorf("failed to parse new coverage: %w", err)
 	}
 
-	changedFiles, err := ParseChangedFiles(changedFilesPath, opts.root)
+	changedFiles, err := ParseChangedFiles(changedFilesPath, opts.root, excludePatterns)
 	if err != nil {
 		return fmt.Errorf("failed to load changed files: %w", err)
 	}

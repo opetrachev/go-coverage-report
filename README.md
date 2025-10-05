@@ -153,6 +153,14 @@ inputs:
     description: Trim a prefix in the "Impacted Packages" column of the markdown report.
     required: false
 
+  exclude-file:
+    description: |
+      Path to a file containing patterns for files to exclude from the coverage report.
+      The file uses a .gitignore-like format with one pattern per line. Glob patterns
+      are supported. Excluded files are completely removed from the coverage report
+      and don't affect coverage calculations.
+    required: false
+
   github-baseline-workflow-ref:
     description: |
       The ref of the GitHub actions Workflow that produces the baseline coverage.
@@ -168,6 +176,43 @@ inputs:
 This action provides the following outputs:
 
 - `coverage_report`: The generated coverage report in Markdown format.
+
+## File Exclusion
+
+You can exclude files from the coverage report using the `--exclude-file` flag. This is useful for excluding test files, generated code, or other files that should not be included in coverage calculations.
+
+### Usage
+
+```bash
+go-coverage-report --exclude-file exclude.txt [other options] old.coverage new.coverage changed-files.json
+```
+
+### Exclude File Format
+
+The exclude file uses a `.gitignore`-like format with one pattern per line:
+
+```
+# Exclude test files
+*_test.go
+
+# Exclude specific files
+github.com/user/project/main.go
+
+# Exclude all files in a directory
+github.com/user/project/generated/*
+```
+
+- Empty lines and lines starting with `#` are ignored
+- Glob patterns are supported using Go's `filepath.Match` syntax
+- Patterns are matched against the full file path as it appears in the coverage profile
+
+### Behavior
+
+Excluded files are completely removed from the coverage report:
+- They don't appear in the coverage statistics
+- They don't affect package-level coverage calculations
+- They don't appear in the changed files list
+- They are excluded from both old and new coverage profiles
 
 ## Limitations
 

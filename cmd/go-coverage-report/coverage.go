@@ -2,6 +2,7 @@ package main
 
 import (
 	"path"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 )
@@ -13,13 +14,40 @@ type Coverage struct {
 	MissedStmt  int64
 }
 
-func ParseCoverage(filename string) (*Coverage, error) {
+func ParseCoverage(filename string, excludePatterns []string) (*Coverage, error) {
 	pp, err := ParseProfiles(filename)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse profiles")
 	}
 
+	// Filter out excluded files
+	if len(excludePatterns) > 0 {
+		pp = filterExcludedProfiles(pp, excludePatterns)
+	}
+
 	return New(pp), nil
+}
+
+// filterExcludedProfiles filters out profiles that match exclusion patterns
+func filterExcludedProfiles(profiles []*Profile, excludePatterns []string) []*Profile {
+	var filtered []*Profile
+
+	for _, profile := range profiles {
+		shouldExclude := false
+
+		for _, pattern := range excludePatterns {
+			if matched, _ := filepath.Match(pattern, profile.FileName); matched {
+				shouldExclude = true
+				break
+			}
+		}
+
+		if !shouldExclude {
+			filtered = append(filtered, profile)
+		}
+	}
+
+	return filtered
 }
 
 func New(profiles []*Profile) *Coverage {
