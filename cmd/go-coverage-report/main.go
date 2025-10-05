@@ -121,12 +121,6 @@ func readExcludePatterns(filename string) ([]string, error) {
 }
 
 func run(oldCovPath, newCovPath, changedFilesPath string, opts options) error {
-	// Validate threshold constraints
-	if opts.fileExclusionThreshold > opts.packageFileThreshold {
-		return fmt.Errorf("file-exclusion-threshold (%.2f) cannot be greater than package-file-threshold (%.2f)",
-			opts.fileExclusionThreshold, opts.packageFileThreshold)
-	}
-
 	// Read exclude patterns if specified
 	excludePatterns, err := readExcludePatterns(opts.excludeFile)
 	if err != nil {
