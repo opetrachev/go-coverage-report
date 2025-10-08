@@ -447,6 +447,37 @@ func TestFilterExcludedFiles(t *testing.T) {
 	assert.NotContains(t, filtered, "helper.go")
 }
 
+func TestDeduplicateFiles(t *testing.T) {
+	files := []string{
+		"api/cmd/api/routes/routes_v1.go",
+		"api/internal/aiassistant/handlers.go",
+		"api/internal/platform/swagger/operation_id.go",
+		"api/cmd/api/routes/routes_v1.go", // duplicate
+		"api/internal/aiassistant/handlers.go", // duplicate
+		"api/internal/catalog/strikethrough/ruleengine/price_selector.go",
+		"api/internal/aiassistant/handlers.go", // duplicate again
+	}
+
+	deduplicated := deduplicateFiles(files)
+
+	// Should have only unique files
+	assert.Len(t, deduplicated, 4)
+	assert.Contains(t, deduplicated, "api/cmd/api/routes/routes_v1.go")
+	assert.Contains(t, deduplicated, "api/internal/aiassistant/handlers.go")
+	assert.Contains(t, deduplicated, "api/internal/platform/swagger/operation_id.go")
+	assert.Contains(t, deduplicated, "api/internal/catalog/strikethrough/ruleengine/price_selector.go")
+
+	// Check that order is preserved (first occurrence is kept)
+	firstIndex := -1
+	for i, f := range deduplicated {
+		if f == "api/cmd/api/routes/routes_v1.go" {
+			firstIndex = i
+			break
+		}
+	}
+	assert.Equal(t, 0, firstIndex, "First file should appear first")
+}
+
 func TestEmojiScore(t *testing.T) {
 	tests := []struct {
 		name        string

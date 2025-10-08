@@ -63,6 +63,7 @@ type Options struct {
 // New creates a new Renderer with the given coverage data and options
 func New(data CoverageData, opts Options) *Renderer {
 	changedFiles := filterExcludedFiles(opts.ChangedFiles, opts.ExcludePatterns)
+	changedFiles = deduplicateFiles(changedFiles)
 	sort.Strings(changedFiles)
 
 	return &Renderer{
@@ -117,6 +118,21 @@ func filterExcludedFiles(files []string, excludePatterns []string) []string {
 	return filtered
 }
 
+// deduplicateFiles removes duplicate entries from the file list
+func deduplicateFiles(files []string) []string {
+	seen := make(map[string]bool)
+	result := make([]string, 0, len(files))
+
+	for _, file := range files {
+		if !seen[file] {
+			seen[file] = true
+			result = append(result, file)
+		}
+	}
+
+	return result
+}
+
 // coverageChange calculates the absolute coverage change
 func coverageChange(oldPercent, newPercent float64) float64 {
 	return math.Abs(newPercent - oldPercent)
@@ -125,6 +141,10 @@ func coverageChange(oldPercent, newPercent float64) float64 {
 // shouldIncludePackage determines if a package should be included in the output
 func (r *Renderer) shouldIncludePackage(pkg string) bool {
 	pkgChange := r.data.GetPackageChange(pkg)
+	if pkgChange == nil {
+		return false
+	}
+
 	packageCoverageChange := coverageChange(pkgChange.GetOldPercent(), pkgChange.GetNewPercent())
 
 	// Check package threshold
@@ -136,6 +156,9 @@ func (r *Renderer) shouldIncludePackage(pkg string) bool {
 	for _, file := range r.changedFiles {
 		if filepath.Dir(file) == pkg {
 			fileChange := r.data.GetFileChange(file)
+			if fileChange == nil {
+				continue
+			}
 			fileCoverageChange := coverageChange(fileChange.GetOldPercent(), fileChange.GetNewPercent())
 			if fileCoverageChange >= r.packageFileThreshold {
 				return true
@@ -149,6 +172,9 @@ func (r *Renderer) shouldIncludePackage(pkg string) bool {
 // shouldIncludeFile determines if a file should be included in the output
 func (r *Renderer) shouldIncludeFile(file string) bool {
 	fileChange := r.data.GetFileChange(file)
+	if fileChange == nil {
+		return false
+	}
 	fileCoverageChange := coverageChange(fileChange.GetOldPercent(), fileChange.GetNewPercent())
 	return fileCoverageChange >= r.fileExclusionThreshold
 }
@@ -197,6 +223,9 @@ func (r *Renderer) Title() string {
 
 	for _, pkg := range filteredPackages {
 		pkgChange := r.data.GetPackageChange(pkg)
+		if pkgChange == nil {
+			continue
+		}
 		oldPercent := pkgChange.GetOldPercent()
 		newPercent := pkgChange.GetNewPercent()
 
@@ -234,6 +263,9 @@ func (r *Renderer) Markdown() string {
 	filteredPackages := r.filteredChangedPackages()
 	for _, pkg := range filteredPackages {
 		pkgChange := r.data.GetPackageChange(pkg)
+		if pkgChange == nil {
+			continue
+		}
 		oldPercent := pkgChange.GetOldPercent()
 		newPercent := pkgChange.GetNewPercent()
 
@@ -279,7 +311,7 @@ func (r *Renderer) addDetails(report *strings.Builder) {
 		r.addTestFileDetails(report, unitTestFiles)
 	}
 
-	fmt.Fprint(report, "</details>")
+	fmt.Fprint(report, "</details><!-- v1.3.0 -->")
 }
 
 // addCodeFileDetails adds the code files section
@@ -291,6 +323,9 @@ func (r *Renderer) addCodeFileDetails(report *strings.Builder, files []string) {
 
 	for _, name := range files {
 		fileChange := r.data.GetFileChange(name)
+		if fileChange == nil {
+			continue
+		}
 		oldCov := fileChange.GetOldCoverage()
 		newCov := fileChange.GetNewCoverage()
 
