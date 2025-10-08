@@ -452,7 +452,7 @@ func TestDeduplicateFiles(t *testing.T) {
 		"api/cmd/api/routes/routes_v1.go",
 		"api/internal/aiassistant/handlers.go",
 		"api/internal/platform/swagger/operation_id.go",
-		"api/cmd/api/routes/routes_v1.go", // duplicate
+		"api/cmd/api/routes/routes_v1.go",      // duplicate
 		"api/internal/aiassistant/handlers.go", // duplicate
 		"api/internal/catalog/strikethrough/ruleengine/price_selector.go",
 		"api/internal/aiassistant/handlers.go", // duplicate again

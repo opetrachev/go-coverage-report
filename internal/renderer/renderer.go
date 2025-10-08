@@ -256,6 +256,7 @@ func (r *Renderer) Title() string {
 func (r *Renderer) Markdown() string {
 	report := new(strings.Builder)
 
+	fmt.Fprintln(report, "<!-- v1.3.0 -->")
 	fmt.Fprintln(report, r.Title())
 	fmt.Fprintln(report, "| Impacted Packages | Coverage Δ | :robot: |")
 	fmt.Fprintln(report, "|-------------------|------------|---------|")
@@ -311,7 +312,7 @@ func (r *Renderer) addDetails(report *strings.Builder) {
 		r.addTestFileDetails(report, unitTestFiles)
 	}
 
-	fmt.Fprint(report, "</details><!-- v1.3.0 -->")
+	fmt.Fprint(report, "</details>")
 }
 
 // addCodeFileDetails adds the code files section
