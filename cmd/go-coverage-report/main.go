@@ -56,7 +56,7 @@ func main() {
 	flag.Float64("package-file-threshold", 0, "minimum coverage change percentage for any file in a package to trigger package inclusion in Impacted Packages section")
 	flag.Float64("file-exclusion-threshold", 0, "minimum coverage change percentage for files to be included in Changed files section")
 
-	err := run(programArgs())
+	err := runNew(programArgs())
 	if err != nil {
 		log.Fatalln("ERROR:", err)
 	}
@@ -120,24 +120,18 @@ func readExcludePatterns(filename string) ([]string, error) {
 	return patterns, nil
 }
 
-func run(oldCovPath, newCovPath, changedFilesPath string, opts options) error {
-	// Read exclude patterns if specified
-	excludePatterns, err := readExcludePatterns(opts.excludeFile)
-	if err != nil {
-		return fmt.Errorf("failed to read exclude patterns: %w", err)
-	}
-
-	oldCov, err := ParseCoverage(oldCovPath, excludePatterns)
+func runOld(oldCovPath, newCovPath, changedFilesPath string, opts options) error {
+	oldCov, err := ParseCoverage(oldCovPath)
 	if err != nil {
 		return fmt.Errorf("failed to parse old coverage: %w", err)
 	}
 
-	newCov, err := ParseCoverage(newCovPath, excludePatterns)
+	newCov, err := ParseCoverage(newCovPath)
 	if err != nil {
 		return fmt.Errorf("failed to parse new coverage: %w", err)
 	}
 
-	changedFiles, err := ParseChangedFiles(changedFilesPath, opts.root, excludePatterns)
+	changedFiles, err := ParseChangedFiles(changedFilesPath, opts.root)
 	if err != nil {
 		return fmt.Errorf("failed to load changed files: %w", err)
 	}

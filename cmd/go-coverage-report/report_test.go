@@ -8,13 +8,13 @@ import (
 )
 
 func TestReport_Markdown(t *testing.T) {
-	oldCov, err := ParseCoverage("testdata/01-old-coverage.txt", nil)
+	oldCov, err := ParseCoverage("testdata/01-old-coverage.txt")
 	require.NoError(t, err)
 
-	newCov, err := ParseCoverage("testdata/01-new-coverage.txt", nil)
+	newCov, err := ParseCoverage("testdata/01-new-coverage.txt")
 	require.NoError(t, err)
 
-	changedFiles, err := ParseChangedFiles("testdata/01-changed-files.json", "github.com/fgrosse/prioqueue", nil)
+	changedFiles, err := ParseChangedFiles("testdata/01-changed-files.json", "github.com/fgrosse/prioqueue")
 	require.NoError(t, err)
 
 	report := NewReport(oldCov, newCov, changedFiles, 0, 0, 0)
@@ -47,13 +47,13 @@ _Please note that the "Total", "Covered", and "Missed" counts above refer to ***
 }
 
 func TestReport_Markdown_OnlyChangedUnitTests(t *testing.T) {
-	oldCov, err := ParseCoverage("testdata/02-old-coverage.txt", nil)
+	oldCov, err := ParseCoverage("testdata/02-old-coverage.txt")
 	require.NoError(t, err)
 
-	newCov, err := ParseCoverage("testdata/02-new-coverage.txt", nil)
+	newCov, err := ParseCoverage("testdata/02-new-coverage.txt")
 	require.NoError(t, err)
 
-	changedFiles, err := ParseChangedFiles("testdata/02-changed-files.json", "github.com/fgrosse/prioqueue", nil)
+	changedFiles, err := ParseChangedFiles("testdata/02-changed-files.json", "github.com/fgrosse/prioqueue")
 	require.NoError(t, err)
 
 	report := NewReport(oldCov, newCov, changedFiles, 0, 0, 0)
@@ -80,13 +80,13 @@ func TestReport_Markdown_OnlyChangedUnitTests(t *testing.T) {
 }
 
 func TestReport_Filtering_WithThresholds(t *testing.T) {
-	oldCov, err := ParseCoverage("testdata/threshold-old-coverage.txt", nil)
+	oldCov, err := ParseCoverage("testdata/threshold-old-coverage.txt")
 	require.NoError(t, err)
 
-	newCov, err := ParseCoverage("testdata/threshold-new-coverage.txt", nil)
+	newCov, err := ParseCoverage("testdata/threshold-new-coverage.txt")
 	require.NoError(t, err)
 
-	changedFiles, err := ParseChangedFiles("testdata/threshold-changed-files.json", "github.com/fgrosse/prioqueue", nil)
+	changedFiles, err := ParseChangedFiles("testdata/threshold-changed-files.json", "github.com/fgrosse/prioqueue")
 	require.NoError(t, err)
 
 	// Test with package threshold that excludes packages with small changes
@@ -121,13 +121,13 @@ _Please note that the "Total", "Covered", and "Missed" counts above refer to ***
 }
 
 func TestReport_Filtering_FileExclusionThreshold(t *testing.T) {
-	oldCov, err := ParseCoverage("testdata/threshold-old-coverage.txt", nil)
+	oldCov, err := ParseCoverage("testdata/threshold-old-coverage.txt")
 	require.NoError(t, err)
 
-	newCov, err := ParseCoverage("testdata/threshold-new-coverage.txt", nil)
+	newCov, err := ParseCoverage("testdata/threshold-new-coverage.txt")
 	require.NoError(t, err)
 
-	changedFiles, err := ParseChangedFiles("testdata/threshold-changed-files.json", "github.com/fgrosse/prioqueue", nil)
+	changedFiles, err := ParseChangedFiles("testdata/threshold-changed-files.json", "github.com/fgrosse/prioqueue")
 	require.NoError(t, err)
 
 	// Test with file exclusion threshold that excludes files with small changes
@@ -162,13 +162,13 @@ _Please note that the "Total", "Covered", and "Missed" counts above refer to ***
 }
 
 func TestReport_Filtering_PackageFileThreshold(t *testing.T) {
-	oldCov, err := ParseCoverage("testdata/threshold-old-coverage.txt", nil)
+	oldCov, err := ParseCoverage("testdata/threshold-old-coverage.txt")
 	require.NoError(t, err)
 
-	newCov, err := ParseCoverage("testdata/threshold-new-coverage.txt", nil)
+	newCov, err := ParseCoverage("testdata/threshold-new-coverage.txt")
 	require.NoError(t, err)
 
-	changedFiles, err := ParseChangedFiles("testdata/threshold-changed-files.json", "github.com/fgrosse/prioqueue", nil)
+	changedFiles, err := ParseChangedFiles("testdata/threshold-changed-files.json", "github.com/fgrosse/prioqueue")
 	require.NoError(t, err)
 
 	// Test with package file threshold that includes packages based on file changes
