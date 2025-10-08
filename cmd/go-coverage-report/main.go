@@ -8,6 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/fgrosse/go-coverage-report/internal/coveragechanges"
+	"github.com/fgrosse/go-coverage-report/internal/renderer"
 )
 
 var usage = strings.TrimSpace(fmt.Sprintf(`
@@ -56,7 +59,7 @@ func main() {
 	flag.Float64("package-file-threshold", 0, "minimum coverage change percentage for any file in a package to trigger package inclusion in Impacted Packages section")
 	flag.Float64("file-exclusion-threshold", 0, "minimum coverage change percentage for files to be included in Changed files section")
 
-	err := runNew(programArgs())
+	err := run(programArgs())
 	if err != nil {
 		log.Fatalln("ERROR:", err)
 	}
@@ -120,7 +123,15 @@ func readExcludePatterns(filename string) ([]string, error) {
 	return patterns, nil
 }
 
-func runOld(oldCovPath, newCovPath, changedFilesPath string, opts options) error {
+// run uses the refactored architecture with separate packages
+func run(oldCovPath, newCovPath, changedFilesPath string, opts options) error {
+	// Read exclude patterns if specified
+	excludePatterns, err := readExcludePatterns(opts.excludeFile)
+	if err != nil {
+		return fmt.Errorf("failed to read exclude patterns: %w", err)
+	}
+
+	// Parse coverage files without exclusions
 	oldCov, err := ParseCoverage(oldCovPath)
 	if err != nil {
 		return fmt.Errorf("failed to parse old coverage: %w", err)
@@ -131,6 +142,7 @@ func runOld(oldCovPath, newCovPath, changedFilesPath string, opts options) error
 		return fmt.Errorf("failed to parse new coverage: %w", err)
 	}
 
+	// Parse changed files without exclusions
 	changedFiles, err := ParseChangedFiles(changedFilesPath, opts.root)
 	if err != nil {
 		return fmt.Errorf("failed to load changed files: %w", err)
@@ -141,16 +153,28 @@ func runOld(oldCovPath, newCovPath, changedFilesPath string, opts options) error
 		return nil
 	}
 
-	report := NewReport(oldCov, newCov, changedFiles, opts.packageThreshold, opts.packageFileThreshold, opts.fileExclusionThreshold)
-	if opts.trim != "" {
-		report.TrimPrefix(opts.trim)
-	}
+	// Create coverage changes using the new package
+	oldCovAdapter := NewCoverageAdapter(oldCov)
+	newCovAdapter := NewCoverageAdapter(newCov)
+	changes := coveragechanges.New(oldCovAdapter, newCovAdapter)
 
+	// Create renderer with the new package
+	changesAdapter := NewCoverageChangesAdapter(changes)
+	rend := renderer.New(changesAdapter, renderer.Options{
+		ChangedFiles:           changedFiles,
+		PackageThreshold:       opts.packageThreshold,
+		PackageFileThreshold:   opts.packageFileThreshold,
+		FileExclusionThreshold: opts.fileExclusionThreshold,
+		ExcludePatterns:        excludePatterns,
+		TrimPrefix:             opts.trim,
+	})
+
+	// Generate output based on format
 	switch strings.ToLower(opts.format) {
 	case "markdown":
-		fmt.Fprintln(os.Stdout, report.Markdown())
+		fmt.Fprintln(os.Stdout, rend.Markdown())
 	case "json":
-		fmt.Fprintln(os.Stdout, report.JSON())
+		fmt.Fprintln(os.Stdout, rend.JSON())
 	default:
 		return fmt.Errorf("unsupported format: %q", opts.format)
 	}
